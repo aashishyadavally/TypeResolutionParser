@@ -17,6 +17,10 @@
 			</plugin>
 		</plugins>
 	</build>
+    <properties>
+	    <exec.mainClass>parser.Main</exec.mainClass>
+    </properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>commons-collections</groupId>

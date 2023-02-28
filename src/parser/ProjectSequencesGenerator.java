@@ -29,7 +29,7 @@ public class ProjectSequencesGenerator {
 	
 	private String inPath, outPath;
 	private boolean testing = false;
-	private PrintStream stLocations, stSourceSequences, stTargetSequences, stLog;
+	private PrintStream stLocations, stSourceSequences, stTargetSequences, stHoleSequences, stFQNSequences, stLog;
 	private HashSet<String> badFiles = new HashSet<>();
 	
 	public ProjectSequencesGenerator(String inPath) {
@@ -55,6 +55,8 @@ public class ProjectSequencesGenerator {
 			stLocations = new PrintStream(new FileOutputStream(outPath + "/locations.txt"));
 			stSourceSequences = new PrintStream(new FileOutputStream(outPath + "/source.txt"));
 			stTargetSequences = new PrintStream(new FileOutputStream(outPath + "/target.txt"));
+			stHoleSequences = new PrintStream(new FileOutputStream(outPath + "/hole.txt"));
+			stFQNSequences = new PrintStream(new FileOutputStream(outPath + "/fqn.txt"));
 			stLog = new PrintStream(new FileOutputStream(outPath + "/log.txt"));
 		} catch (FileNotFoundException e) {
 			if (testing)
@@ -105,6 +107,7 @@ public class ProjectSequencesGenerator {
 		public void acceptAST(String sourceFilePath, CompilationUnit ast) {
 			if (ast.getPackage() == null)
 				return;
+
 			if (lib != null) {
 				boolean hasLib = false;
 				if (ast.getPackage().getName().getFullyQualifiedName().startsWith(lib))
@@ -128,6 +131,8 @@ public class ProjectSequencesGenerator {
 				if (ast.types().get(i) instanceof TypeDeclaration) {
 					TypeDeclaration td = (TypeDeclaration) ast.types().get(i);
 					numOfSequences += generateSequence(keepUnresolvables, lib, td, sourceFilePath, ast.getPackage().getName().getFullyQualifiedName(), "");
+//					Integer n = new Integer(numOfSequences);
+//					System.out.println("************* " + Integer.toString(n));
 				}
 			}
 		}
@@ -200,14 +205,24 @@ public class ProjectSequencesGenerator {
 		String name = outer.isEmpty() ? td.getName().getIdentifier() : outer + "." + td.getName().getIdentifier();
 		String className = td.getName().getIdentifier(), superClassName = null;
 		if (td.getSuperclassType() != null)
-			superClassName = SequenceGenerator.getUnresolvedType(td.getSuperclassType());
+//			superClassName = SequenceGenerator.getUnresolvedType(td.getSuperclassType());
+			superClassName = FQNSequenceGenerator.getUnresolvedType(td.getSuperclassType());
 		for (MethodDeclaration method : td.getMethods()) {
 			stLog.println(path + "\t" + name + "\t" + method.getName().getIdentifier() + "\t" + getParameters(method));
-			SequenceGenerator sg = new SequenceGenerator(className, superClassName);
+//			SequenceGenerator sg = new SequenceGenerator(className, superClassName);
+			FQNSequenceGenerator sg = new FQNSequenceGenerator(className, superClassName);
 			method.accept(sg);
 			int numofExpressions = sg.getNumOfExpressions(), numOfResolvedExpressions = sg.getNumOfResolvedExpressions();
 			String source = sg.getPartialSequence(), target = sg.getFullSequence();
+			String holeSource = sg.getHoleSequence(), fqnTarget = sg.getFQNSequence();
+			System.out.println("****************");
+			System.out.println(holeSource);
+			System.out.println("---------------");
+			System.out.println(fqnTarget);
+			System.out.println("****************");
 			String[] sTokens = sg.getPartialSequenceTokens(), tTokens = sg.getFullSequenceTokens();
+			String[] hTokens = sg.getHoleSequenceTokens(), fTokens = sg.getFQNSequenceTokens();
+
 			if (sTokens.length == tTokens.length 
 					&& sTokens.length > 2 && numofExpressions > 0 
 					&& (keepUnresolvables || numofExpressions == numOfResolvedExpressions)) {
@@ -230,6 +245,8 @@ public class ProjectSequencesGenerator {
 					stLocations.print(path + "\t" + packageName + "\t" + name + "\t" + method.getName().getIdentifier() + "\t" + getParameters(method) + "\t" + numofExpressions + "\t" + numOfResolvedExpressions + "\t" + (numOfResolvedExpressions * 100 / numofExpressions) + "%" + "\n");
 					stSourceSequences.print(source + "\n");
 					stTargetSequences.print(target + "\n");
+					stHoleSequences.print(holeSource + "\n");
+					stFQNSequences.print(fqnTarget + "\n");
 					numOfSequences++;
 				}
 			}
@@ -255,7 +272,8 @@ public class ProjectSequencesGenerator {
 		sb.append("(");
 		for (int i = 0; i < method.parameters().size(); i++) {
 			SingleVariableDeclaration d = (SingleVariableDeclaration) (method.parameters().get(i));
-			String type = SequenceGenerator.getUnresolvedType(d.getType());
+//			String type = SequenceGenerator.getUnresolvedType(d.getType());
+			String type = FQNSequenceGenerator.getUnresolvedType(d.getType());
 			sb.append("\t" + type);
 		}
 		sb.append("\t)");
