@@ -1,4 +1,4 @@
-package utils;
+package fqntypeparser;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

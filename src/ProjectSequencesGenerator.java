@@ -1,4 +1,4 @@
-package parser;
+package fqntypeparser;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -30,8 +30,8 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import org.json.simple.JSONObject;
 
-import parser.ClassPathUtil.PomFile;
-import utils.FileUtil;
+import fqntypeparser.ClassPathUtil.PomFile;
+import fqntypeparser.FileUtil;
 
 public class ProjectSequencesGenerator {
     private static final boolean PARSE_INDIVIDUAL_SRC = false, SCAN_FILES_FRIST = false;

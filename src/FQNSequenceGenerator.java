@@ -1,4 +1,4 @@
-package parser;
+package fqntypeparser;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -12,12 +12,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
     private String className, superClassName;
     private int offset;
     private int numOfExpressions = 0, numOfResolvedExpressions = 0;
-    private StringBuilder fullTokens = new StringBuilder(), partialTokens = new StringBuilder();
-    private StringBuilder holeTokens = new StringBuilder(), fqnTokens = new StringBuilder();
-    private String fullSequence = null, partialSequence = null;
-    private String holeSequence = null, fqnSequence = null;
-    private String[] fullSequenceTokens, partialSequenceTokens;
-    private String[] holeSequenceTokens, fqnSequenceTokens;
     private ArrayList<HashMap<String, String>> nodeInfo = new ArrayList<HashMap<String, String>>();
     
     public FQNSequenceGenerator(String className, String superClassName, int offset) {
@@ -27,120 +21,8 @@ public class FQNSequenceGenerator extends ASTVisitor {
         this.offset = offset;
     }
 
-
     public ArrayList<HashMap<String, String>> getNodeInfo() {
         return nodeInfo;
-    }
-
-    public String[] getFullSequenceTokens() {
-        if (fullSequenceTokens == null)
-            buildFullSequence();
-        return fullSequenceTokens;
-    }
-
-    public String[] getPartialSequenceTokens() {
-        if (partialSequenceTokens == null)
-            buildPartialSequence();
-        return partialSequenceTokens;
-    }
-
-    public String[] getHoleSequenceTokens() {
-        if (holeSequenceTokens == null)
-            buildHoleSequence();
-        return holeSequenceTokens;
-    }
-
-    public String[] getFQNSequenceTokens() {
-        if (fqnSequenceTokens == null)
-            buildFQNSequence();
-        return fqnSequenceTokens;
-    }
-
-    public String getFullSequence() {
-        if (fullSequence == null)
-            buildFullSequence();
-        return fullSequence;
-    }
-
-    public String getPartialSequence() {
-        if (partialSequence == null)
-            buildPartialSequence();
-        return partialSequence;
-    }
-
-    public String getHoleSequence() {
-        if (holeSequence == null)
-            buildHoleSequence();
-        return holeSequence;
-    }
-
-    public String getFQNSequence() {
-        if (fqnSequence == null)
-            buildFQNSequence();
-        return fqnSequence;
-    }
-
-    private void buildFullSequence() {
-        ArrayList<String> parts = buildSequence(fullTokens);
-        this.fullSequence = parts.get(0);
-        this.fullSequenceTokens = new String[parts.size() - 1];
-        for (int i = 1; i < parts.size(); i++)
-            this.fullSequenceTokens[i-1] = parts.get(i);
-    }
-
-    private void buildPartialSequence() {
-        ArrayList<String> parts = buildSequence(partialTokens);
-        this.partialSequence = parts.get(0);
-        this.partialSequenceTokens = new String[parts.size() - 1];
-        for (int i = 1; i < parts.size(); i++)
-            this.partialSequenceTokens[i-1] = parts.get(i);
-    }
-
-    private void buildHoleSequence() {
-        ArrayList<String> parts = buildSequence(holeTokens);
-        this.holeSequence = parts.get(0);
-        this.holeSequenceTokens = new String[parts.size() - 1];
-        for (int i = 1; i < parts.size(); i++)
-            this.holeSequenceTokens[i-1] = parts.get(i);
-    }
-
-    private void buildFQNSequence() {
-        ArrayList<String> parts = buildSequence(fqnTokens);
-        this.fqnSequence = parts.get(0);
-        this.fqnSequenceTokens = new String[parts.size() - 1];
-        for (int i = 1; i < parts.size(); i++)
-            this.fqnSequenceTokens[i-1] = parts.get(i);
-    }
-    
-    private ArrayList<String> buildSequence(StringBuilder tokens) {
-        tokens.append(" ");
-        ArrayList<String> l = new ArrayList<>();
-        StringBuilder sequence = new StringBuilder(), token = null;
-        for (int i = 0; i < tokens.length(); i++) {
-            char ch = tokens.charAt(i);
-            if (ch == ' ') {
-                if (token != null) {
-                    String t = token.toString();
-                    l.add(t);
-                    sequence.append(t + " ");
-                    token = null;
-                }
-            } else {
-                if (token == null)
-                    token = new StringBuilder();
-                token.append(ch);
-            }
-        }
-        l.add(0, sequence.toString());
-        return l;
-    }
-
-    public int getNumOfExpressions() {
-        return numOfExpressions;
-    }
-
-    public int getNumOfResolvedExpressions() {
-        return numOfResolvedExpressions;
     }
 
     private Type getType(VariableDeclarationFragment node) {
@@ -300,26 +182,27 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(ArrayAccess node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
         return super.visit(node);
     }
 
     @Override
     public boolean visit(ArrayCreation node) {
-/*
+        HashMap<String, String> data = new HashMap<String, String>();
+        int startPosition = node.getStartPosition();
+        if (startPosition != -1) {
+            int endPosition = startPosition + node.getLength();
+            data.put("debugText", node.toString());
+            data.put("start", "" + (startPosition - offset - 1));
+            data.put("end", "" + (endPosition - offset - 1));
+        }
         String utype = getUnresolvedType(node.getType()), rtype = getResolvedType(node.getType());
-        this.partialTokens.append(" new " + utype + " ");
-        this.holeTokens.append(" new <blank>." + utype + " ");
-        this.fullTokens.append(" new " + rtype + " ");
-        this.fqnTokens.append("new " + rtype + " ");
+        if (startPosition != -1) {
+            data.put("unresolvedType", utype);
+            data.put("resolvedType", rtype);
+            data.put("nodeType", "ARRAY_CREATION");
+            nodeInfo.add(data);
+        }
+
         if (node.getInitializer() != null)
             node.getInitializer().accept(this);
         else
@@ -327,131 +210,50 @@ public class FQNSequenceGenerator extends ASTVisitor {
                 ((Expression) (node.dimensions().get(i))).accept(this);
         return false;
     }
-*/
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-        return super.visit(node);
-    }
+
 
     @Override
     public boolean visit(ArrayInitializer node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
         return super.visit(node);
     }
 
     @Override
     public boolean visit(AssertStatement node) {
-        this.fullTokens.append(" assert ");
-        this.partialTokens.append(" assert ");
-
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(Assignment node) {
         node.getLeftHandSide().accept(this);
-        this.fullTokens.append(" = ");
-        this.partialTokens.append(" = ");
         node.getRightHandSide().accept(this);
-
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(Block node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(BooleanLiteral node) {
-        this.fullTokens.append(" boolean ");
-        this.partialTokens.append(" boolean ");
-
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(BreakStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(CastExpression node) {
         String utype = getUnresolvedType(node.getType()), rtype = getResolvedType(node.getType());
-        this.fullTokens.append(" " + rtype + " <cast> ");
-        this.partialTokens.append(" " + utype + " <cast> ");
         node.getExpression().accept(this);
 
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
             HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
             data.put("nodeType", "CAST_EXPRESSION");
@@ -465,34 +267,11 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(CatchClause node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(CharacterLiteral node) {
-        this.fullTokens.append(" char ");
-        this.partialTokens.append(" char ");
-
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
@@ -505,13 +284,10 @@ public class FQNSequenceGenerator extends ASTVisitor {
         String rtype = null;
         IMethodBinding b = node.resolveConstructorBinding();
         if (b == null) {
-            this.fullTokens.append(" new " + utype);
             rtype = utype;
         } else {
-            this.fullTokens.append(" new " + getSignature(b.getMethodDeclaration()) + " ");
             rtype = getSignature(b.getMethodDeclaration());
         }
-        this.partialTokens.append(" new " + utype);
         for (Iterator it = node.arguments().iterator(); it.hasNext(); ) {
             Expression e = (Expression) it.next();
             e.accept(this);
@@ -523,7 +299,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
             HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
             data.put("nodeType", "CLASS_INSTANCE_CREATION");
@@ -537,16 +313,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(ConditionalExpression node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
@@ -562,11 +328,9 @@ public class FQNSequenceGenerator extends ASTVisitor {
         }
         String name = "." + className;
         String utype = name;
-        this.partialTokens.append(" " + name + " ");
         if (tb != null)
             name = getSignature(b.getMethodDeclaration());
         String rtype = name;
-        this.fullTokens.append(" " + name + " ");
         for (int i = 0; i < node.arguments().size(); i++)
             ((ASTNode) node.arguments().get(i)).accept(this);
 
@@ -574,7 +338,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
             HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
             data.put("nodeType", "CONSTRUCTOR_INVOCATION");
@@ -588,151 +352,51 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(ContinueStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(CreationReference node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(Dimension node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(DoStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(EmptyStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(EnhancedForStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(EnumConstantDeclaration node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(EnumDeclaration node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(ExpressionMethodReference node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(ExpressionStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
@@ -748,26 +412,22 @@ public class FQNSequenceGenerator extends ASTVisitor {
                     return false;
             }
         }
-        this.fullTokens.append(" ");
-        this.partialTokens.append(" ");
         node.getExpression().accept(this);
         String name = "." + node.getName().getIdentifier();
         String utype = name;
-        this.partialTokens.append(" " + name + " ");
         if (b != null) {
             if (tb != null)
                 name = getQualifiedName(tb.getTypeDeclaration()) + name;
             /*else
                 name = "Array" + name;*/
         }
-        this.fullTokens.append(" " + name + " ");
         String rtype = name;
 
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
             HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
             data.put("nodeType", "FIELD_ACCESS");
@@ -781,110 +441,44 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(FieldDeclaration node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(ForStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(IfStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(ImportDeclaration node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(InfixExpression node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(Initializer node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(InstanceofExpression node) {
-        this.fullTokens.append(" ");
-        this.partialTokens.append(" ");
         node.getLeftOperand().accept(this);
-        this.fullTokens.append(" <instanceof> ");
-        this.partialTokens.append(" <instanceof> ");
         String rtype = getResolvedType(node.getRightOperand()), utype = getUnresolvedType(node.getRightOperand());
-        this.fullTokens.append(rtype + " ");
-        this.partialTokens.append(utype + " ");
 
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
             HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
             data.put("nodeType", "INSTANCEOF_EXPRESSION");
@@ -898,31 +492,11 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(LabeledStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(LambdaExpression node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
@@ -930,17 +504,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
     public boolean visit(MethodDeclaration node) {
         if (node.getBody() != null && !node.getBody().statements().isEmpty())
             node.getBody().accept(this);
-
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
@@ -950,7 +513,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         HashMap<String, String> data = new HashMap<String, String>();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
         }
@@ -958,8 +521,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
         if (node.getExpression() != null && node.getExpression() instanceof TypeLiteral) {
             TypeLiteral lit = (TypeLiteral) node.getExpression();
             String utype = getUnresolvedType(lit.getType()), rtype = getResolvedType(lit.getType());
-            this.fullTokens.append(" " + rtype + ".class." + node.getName().getIdentifier() + "() ");
-            this.partialTokens.append(" " + utype + ".class." + node.getName().getIdentifier() + "() ");
             if (startPosition != -1) {
                 data.put("unresolvedType", utype + node.getName().getIdentifier());
                 data.put("resolvedType", rtype + node.getName().getIdentifier());
@@ -980,21 +541,15 @@ public class FQNSequenceGenerator extends ASTVisitor {
                     }
                 }
             }
-            this.fullTokens.append(" ");
-            this.partialTokens.append(" ");
             if (node.getExpression() != null) {
                 node.getExpression().accept(this);
             } else {
                 if (tb != null) {
-                    this.partialTokens.append(" " + getName(tb) + " ");
-                    this.fullTokens.append(" " + getQualifiedName(tb) + " ");
                     if (startPosition != -1) {
                         data.put("unresolvedType", getName(tb));
                         data.put("resolvedType", getQualifiedName(tb));
                     }
                 } else {
-                    this.partialTokens.append(" this ");
-                    this.fullTokens.append(" this ");
                     if (startPosition != -1) {
                         data.put("unresolvedType", "this");
                         data.put("resolvedType", "this");
@@ -1002,13 +557,11 @@ public class FQNSequenceGenerator extends ASTVisitor {
                 }
             }
             String name = "."+ node.getName().getIdentifier() + "()";
-            this.partialTokens.append(" " + name + " ");
             if (startPosition != -1) {
                 data.put("unresolvedType", name);
             }
             if (tb != null)
                 name = getSignature(b.getMethodDeclaration());
-            this.fullTokens.append(" " + name + " ");
             if (startPosition != -1) {
                 data.put("resolvedType", name);
             }
@@ -1025,125 +578,41 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(Modifier node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(NormalAnnotation node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(NullLiteral node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
-        this.fullTokens.append(" null ");
-        this.partialTokens.append(" null ");
         return false;
     }
 
     @Override
     public boolean visit(NumberLiteral node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
-        this.fullTokens.append(" number ");
-        this.partialTokens.append(" number ");
         return false;
     }
 
     @Override
     public boolean visit(PackageDeclaration node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(ParenthesizedExpression node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(PostfixExpression node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(PrefixExpression node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
@@ -1153,7 +622,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         HashMap<String, String> data = new HashMap<String, String>();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
             nodeInfo.add(data);
@@ -1179,8 +648,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
                 tb = ((ITypeBinding) b).getTypeDeclaration();
                 if (tb.isLocal() || tb.getQualifiedName().isEmpty())
                     return false;
-                this.partialTokens.append(" " + node.getFullyQualifiedName() + " ");
-                this.fullTokens.append(" " + getQualifiedName(tb) + " ");
                 if (startPosition != -1) {
                     data.put("unresolvedType", node.getFullyQualifiedName());
                     data.put("resolvedType", getQualifiedName(tb));
@@ -1190,8 +657,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
                 return false;
             }
         } else {
-            this.partialTokens.append(" " + node.getFullyQualifiedName() + " ");
-            this.fullTokens.append(" " + node.getFullyQualifiedName() + " ");
             if (startPosition != -1) {
                 data.put("unresolvedType", node.getFullyQualifiedName());
                 data.put("resolvedType", node.getFullyQualifiedName());
@@ -1202,7 +667,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
         }
         node.getQualifier().accept(this);
         String name = "." + node.getName().getIdentifier();
-        this.partialTokens.append(" " + name + " ");
         if (startPosition != -1)
             data.put("unresolvedType", name);
         if (b != null) {
@@ -1213,7 +677,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
                     name = "Array" + name;*/
             }
         }
-        this.fullTokens.append(" " + name + " ");
         if (startPosition != -1) {
             data.put("resolvedType", name);
             data.put("nodeType", "QUALIFIED_NAME");
@@ -1224,16 +687,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(ReturnStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
@@ -1241,9 +694,9 @@ public class FQNSequenceGenerator extends ASTVisitor {
     public boolean visit(SimpleName node) {
         int startPosition = node.getStartPosition();
         HashMap<String, String> data = new HashMap<String, String>();
-        if (startPosition != -1) {
+        if (startPosition == -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
         }
@@ -1256,13 +709,11 @@ public class FQNSequenceGenerator extends ASTVisitor {
                 if (tb != null) {
                     tb = tb.getTypeDeclaration();
                     if (tb.isLocal() || tb.getQualifiedName().isEmpty()) {
-                        if (startPosition != -1)
+                        if (startPosition == -1)
                             nodeInfo.add(data);
                         return false;
                     }
-                    this.fullTokens.append(" " + getQualifiedName(tb) + " ");
-                    this.partialTokens.append(" " + getName(tb) + " ");
-                    if (startPosition != -1) {
+                    if (startPosition == -1) {
                         data.put("unresolvedType", getQualifiedName(tb));
                         data.put("resolvedType", getName(tb));
                         data.put("nodeType", "SIMPLE_NAME");
@@ -1276,40 +727,26 @@ public class FQNSequenceGenerator extends ASTVisitor {
                         nodeInfo.add(data);
                     return false;
                 }
-                this.fullTokens.append(" " + getQualifiedName(tb) + " ");
-                this.partialTokens.append(" " + getName(tb) + " ");
-                if (startPosition != -1) {
+                if (startPosition == -1) {
                     data.put("unresolvedType", getQualifiedName(tb));
                     data.put("resolvedType", getName(tb));
                     data.put("nodeType", "SIMPLE_NAME");
                 }
             }
         } else {
-            this.fullTokens.append(" " + node.getIdentifier() + " ");
-            this.partialTokens.append(" " + node.getIdentifier() + " ");
-            if (startPosition != -1) {
+            if (startPosition == -1) {
                 data.put("unresolvedType", node.getIdentifier());
                 data.put("resolvedType", node.getIdentifier());
                 data.put("nodeType", "SIMPLE_NAME");
             }
         }
-        if (startPosition != -1)
+        if (startPosition == -1)
             nodeInfo.add(data);
         return false;
     }
 
     @Override
     public boolean visit(SingleMemberAnnotation node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
@@ -1319,7 +756,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
         }
@@ -1331,16 +768,12 @@ public class FQNSequenceGenerator extends ASTVisitor {
             return false;
         }
         String utype = getUnresolvedType(node.getType()), rtype = getResolvedType(node.getType());
-        this.partialTokens.append(" " + utype + " ");
-        this.fullTokens.append(" " + rtype + " ");
         if (startPosition != -1) {
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
             data.put("nodeType", "SINGLE_VARIABLE_DECLARATION");
         }
         if (node.getInitializer() != null) {
-            this.partialTokens.append("= ");
-            this.fullTokens.append("= ");
             node.getInitializer().accept(this);
         }
         if (startPosition != -1)
@@ -1350,18 +783,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(StringLiteral node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
-        this.fullTokens.append(" java.lang.String ");
-        this.partialTokens.append(" java.lang.String ");
         return false;
     }
 
@@ -1371,7 +792,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
         }
@@ -1388,15 +809,13 @@ public class FQNSequenceGenerator extends ASTVisitor {
             }
         }
         String name = "." + superClassName;
-        this.partialTokens.append(" " + name + " ");
         if (startPosition != -1)
             data.put("unresolvedType", name);
         if (tb != null)
             name = getSignature(b.getMethodDeclaration());
-        this.fullTokens.append(" " + name + " ");
         if (startPosition != -1) {
             data.put("resolvedType", name);
-            data.put("nodeType", "SUPER_FIELD_ACCESS");
+            data.put("nodeType", "SUPER_CONSTRUCTOR_INVOCATION");
             nodeInfo.add(data);
         }
         for (int i = 0; i < node.arguments().size(); i++)
@@ -1410,7 +829,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
         }
@@ -1424,16 +843,12 @@ public class FQNSequenceGenerator extends ASTVisitor {
                     nodeInfo.add(data);
                 return false;
             }
-            this.partialTokens.append(" " + getName(tb) + " ");
-            this.fullTokens.append(" " + getQualifiedName(tb) + " ");
             if (startPosition != -1) {
                 data.put("unresolvedType", "" + getName(tb));
                 data.put("resolvedType", "" + getQualifiedName(tb));
                 data.put("nodeType", "SUPER_FIELD_ACCESS");
             }
         } else {
-            this.partialTokens.append(" super ");
-            this.fullTokens.append(" super ");
             if (startPosition != -1) {
                 data.put("unresolvedType", "super");
                 data.put("resolvedType", "super");
@@ -1441,12 +856,10 @@ public class FQNSequenceGenerator extends ASTVisitor {
             }
         }
         String name = "." + node.getName().getIdentifier();
-        this.partialTokens.append(" " + name + " ");
         if (startPosition != -1)
             data.put("unresolvedType", name);
         if (tb != null)
             name = getQualifiedName(tb) + name;
-        this.fullTokens.append(" " + name + " ");
         if (startPosition != -1) {
             data.put("resolvedType", name);
             data.put("nodeType", "SUPER_FIELD_ACCESS");
@@ -1461,7 +874,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
         }
@@ -1476,16 +889,12 @@ public class FQNSequenceGenerator extends ASTVisitor {
                     nodeInfo.add(data);
                 return false;
             }
-            this.partialTokens.append(" " + getName(tb) + " ");
-            this.fullTokens.append(" " + getQualifiedName(tb) + " ");
             if (startPosition != -1) {
                 data.put("unresolvedType", getName(tb));
                 data.put("resolvedType", getQualifiedName(tb));
                 data.put("nodeType", "SUPER_METHOD_INVOCATION");
             }
         } else {
-            this.partialTokens.append(" super ");
-            this.fullTokens.append(" super ");
             if (startPosition != -1) {
                 data.put("unresolvedType", "super");
                 data.put("resolvedType", "super");
@@ -1493,12 +902,10 @@ public class FQNSequenceGenerator extends ASTVisitor {
             }
         }
         String name = "." + node.getName().getIdentifier();
-        this.partialTokens.append(" " + name + " ");
         if (startPosition != -1)
             data.put("unresolvedType", name);
         if (tb != null)
             name = getSignature(b.getMethodDeclaration());
-        this.fullTokens.append(" " + name + " ");
         if (startPosition != -1) {
             data.put("unresolvedType", name);
             nodeInfo.add(data);
@@ -1510,195 +917,77 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(SuperMethodReference node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(SwitchCase node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(SwitchStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(SynchronizedStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(ThisExpression node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         ITypeBinding b = node.resolveTypeBinding();
         if (b != null) {
             b = b.getTypeDeclaration();
             if (b.isLocal() || b.getQualifiedName().isEmpty())
                 return false;
-            this.partialTokens.append(" " + getName(b) + " ");
-            this.fullTokens.append(" " + getQualifiedName(b) + " ");
-        } else {
-            this.partialTokens.append(" this ");
-            this.fullTokens.append(" this ");
         }
         return false;
     }
 
     @Override
     public boolean visit(ThrowStatement node) {
+        HashMap<String, String> data = new HashMap<String, String>();
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
+            data.put("nodeType", "THROW_EXPRESSION");
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
             nodeInfo.add(data);
         }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(TryStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(TypeDeclaration node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(TypeDeclarationStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 
     @Override
     public boolean visit(TypeLiteral node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
-        String utype = getUnresolvedType(node.getType()), rtype = getResolvedType(node.getType());
-        this.fullTokens.append(" " + rtype + ".class ");
-        this.partialTokens.append(" " + utype + ".class ");
         return false;
     }
 
     @Override
     public boolean visit(TypeMethodReference node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
 
     @Override
     public boolean visit(TypeParameter node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
     
@@ -1708,7 +997,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
         }
@@ -1721,8 +1010,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
             return false;
         }
         String utype = getUnresolvedType(node.getType()), rtype = getResolvedType(node.getType());
-        this.partialTokens.append(" " + utype + " ");
-        this.fullTokens.append(" " + rtype + " ");
         if (startPosition != -1) {
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
@@ -1740,7 +1027,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
         }
@@ -1770,14 +1057,12 @@ public class FQNSequenceGenerator extends ASTVisitor {
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
-            data.put("text", node.toString());
+            data.put("debugText", node.toString());
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
         }
         Type type = getType(node);
         String utype = getUnresolvedType(type), rtype = getResolvedType(type);
-        this.partialTokens.append(" " + utype + " ");
-        this.fullTokens.append(" " + rtype + " ");
         if (startPosition != -1) {
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
@@ -1785,8 +1070,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
             nodeInfo.add(data);
         }
         if (node.getInitializer() != null) {
-            this.partialTokens.append("= ");
-            this.fullTokens.append("= ");
             node.getInitializer().accept(this);
         }
         return false;
@@ -1794,151 +1077,51 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(WhileStatement node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return super.visit(node);
     }
     
     @Override
     public boolean visit(ArrayType node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
     
     @Override
     public boolean visit(IntersectionType node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
     
     @Override
     public boolean visit(ParameterizedType node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
     
     @Override
     public boolean visit(UnionType node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
     
     @Override
     public boolean visit(NameQualifiedType node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
     
     @Override
     public boolean visit(PrimitiveType node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
     
     @Override
     public boolean visit(QualifiedType node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
     
     @Override
     public boolean visit(SimpleType node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
     
     @Override
     public boolean visit(WildcardType node) {
-        int startPosition = node.getStartPosition();
-        if (startPosition != -1) {
-            int endPosition = startPosition + node.getLength();
-            HashMap<String, String> data = new HashMap<String, String>();
-            data.put("text", node.toString());
-            data.put("start", "" + (startPosition - offset - 1));
-            data.put("end", "" + (endPosition - offset - 1));
-            nodeInfo.add(data);
-        }
-
         return false;
     }
 

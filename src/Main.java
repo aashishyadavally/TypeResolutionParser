@@ -1,4 +1,4 @@
-package parser;
+package fqntypeparser;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -7,7 +7,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-import utils.FileUtil;
+import fqntypeparser.FileUtil;
 
 
 public class Main {
