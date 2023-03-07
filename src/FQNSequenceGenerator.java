@@ -38,11 +38,11 @@ public class FQNSequenceGenerator extends ASTVisitor {
         StringBuilder sb = new StringBuilder();
         sb.append(method.getDeclaringClass().getTypeDeclaration().getQualifiedName());
         sb.append("." + method.getName());
-        sb.append("(");
+//        sb.append("(");
 //        sb.append(SEPARATOR);
 //        for (ITypeBinding tb : method.getParameterTypes())
 //            sb.append(tb.getTypeDeclaration().getName() + "#");
-        sb.append(")");
+//        sb.append(")");
         return sb.toString();
     }
 
@@ -196,13 +196,13 @@ public class FQNSequenceGenerator extends ASTVisitor {
             data.put("end", "" + (endPosition - offset - 1));
         }
         String utype = getUnresolvedType(node.getType()), rtype = getResolvedType(node.getType());
+
         if (startPosition != -1) {
-            data.put("unresolvedType", utype);
-            data.put("resolvedType", rtype);
+            data.put("unresolvedType", utype.substring(0, utype.length() - 2));
+            data.put("resolvedType", rtype.substring(0, rtype.length() - 2));
             data.put("nodeType", "ARRAY_CREATION");
             nodeInfo.add(data);
         }
-
         if (node.getInitializer() != null)
             node.getInitializer().accept(this);
         else
@@ -261,7 +261,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
             data.put("end", "" + (endPosition - offset - 1));
             nodeInfo.add(data);
         }
-
         return false;
     }
 
@@ -294,7 +293,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
         }
         if (node.getAnonymousClassDeclaration() != null)
             node.getAnonymousClassDeclaration().accept(this);
-
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
@@ -333,7 +331,20 @@ public class FQNSequenceGenerator extends ASTVisitor {
         String rtype = name;
         for (int i = 0; i < node.arguments().size(); i++)
             ((ASTNode) node.arguments().get(i)).accept(this);
-
+		String nodeArguments = "(";
+        for (int i = 0; i < node.arguments().size(); i++) {
+			nodeArguments += node.arguments().get(i);
+			if (i < node.arguments().size() - 1)
+				nodeArguments += ", ";
+		}
+		nodeArguments += ")";
+		
+		if (utype == rtype) {
+			if (utype.startsWith(".")) {
+				utype = utype.substring(1, utype.length());
+				rtype = rtype.substring(1, rtype.length());
+			}
+		}
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
@@ -341,13 +352,14 @@ public class FQNSequenceGenerator extends ASTVisitor {
             data.put("debugText", node.toString());
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
+			data.put("partial", "<blank>" + nodeArguments + ";");
+			data.put("full", rtype + nodeArguments + ";");
             data.put("nodeType", "CONSTRUCTOR_INVOCATION");
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
             nodeInfo.add(data);
         }
-
-        return false;
+		return false;
     }
 
     @Override
@@ -422,7 +434,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
                 name = "Array" + name;*/
         }
         String rtype = name;
-
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
@@ -430,6 +441,8 @@ public class FQNSequenceGenerator extends ASTVisitor {
             data.put("debugText", node.toString());
             data.put("unresolvedType", utype);
             data.put("resolvedType", rtype);
+            data.put("partial", "<blank>" + utype);
+            data.put("full", rtype);
             data.put("nodeType", "FIELD_ACCESS");
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
@@ -473,7 +486,6 @@ public class FQNSequenceGenerator extends ASTVisitor {
     public boolean visit(InstanceofExpression node) {
         node.getLeftOperand().accept(this);
         String rtype = getResolvedType(node.getRightOperand()), utype = getUnresolvedType(node.getRightOperand());
-
         int startPosition = node.getStartPosition();
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
@@ -511,6 +523,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
     public boolean visit(MethodInvocation node) {
         int startPosition = node.getStartPosition();
         HashMap<String, String> data = new HashMap<String, String>();
+		String utype = null, rtype = null;
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
             data.put("debugText", node.toString());
@@ -520,10 +533,13 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
         if (node.getExpression() != null && node.getExpression() instanceof TypeLiteral) {
             TypeLiteral lit = (TypeLiteral) node.getExpression();
-            String utype = getUnresolvedType(lit.getType()), rtype = getResolvedType(lit.getType());
+            utype = getUnresolvedType(lit.getType());
+			rtype = getResolvedType(lit.getType());
             if (startPosition != -1) {
-                data.put("unresolvedType", utype + node.getName().getIdentifier());
-                data.put("resolvedType", rtype + node.getName().getIdentifier());
+				utype = utype + "." + node.getName().getIdentifier();
+				rtype = rtype + "." + node.getName().getIdentifier();
+                data.put("unresolvedType", utype);
+                data.put("resolvedType", rtype);
             }
         } else {
             IMethodBinding b = node.resolveMethodBinding();
@@ -546,30 +562,44 @@ public class FQNSequenceGenerator extends ASTVisitor {
             } else {
                 if (tb != null) {
                     if (startPosition != -1) {
-                        data.put("unresolvedType", getName(tb));
-                        data.put("resolvedType", getQualifiedName(tb));
+						utype = getName(tb);
+						rtype = getQualifiedName(tb);
+                        data.put("unresolvedType", utype);
+                        data.put("resolvedType", rtype);
                     }
                 } else {
                     if (startPosition != -1) {
-                        data.put("unresolvedType", "this");
-                        data.put("resolvedType", "this");
+						utype = "this";
+						rtype = "this";
+                        data.put("unresolvedType", utype);
+                        data.put("resolvedType", rtype);
                     }
                 }
             }
-            String name = "."+ node.getName().getIdentifier() + "()";
+            String name = "."+ node.getName().getIdentifier();
             if (startPosition != -1) {
-                data.put("unresolvedType", name);
+				utype = name;
+                data.put("unresolvedType", utype);
             }
             if (tb != null)
                 name = getSignature(b.getMethodDeclaration());
             if (startPosition != -1) {
-                data.put("resolvedType", name);
+				rtype = name;
+                data.put("resolvedType", rtype);
             }
         }
         for (int i = 0; i < node.arguments().size(); i++)
             ((ASTNode) node.arguments().get(i)).accept(this);
-
+		String nodeArguments = "(";
+        for (int i = 0; i < node.arguments().size(); i++) {
+			nodeArguments += node.arguments().get(i);
+			if (i < node.arguments().size() - 1)
+				nodeArguments += ", ";
+		}
+		nodeArguments += ")";
         if (startPosition != -1) {
+			data.put("partial", "<blank>" + utype + nodeArguments);
+			data.put("full", rtype + nodeArguments);
             data.put("nodeType", "METHOD_INVOCATION");
             nodeInfo.add(data);
         }
@@ -790,6 +820,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
     public boolean visit(SuperConstructorInvocation node) {
         HashMap<String, String> data = new HashMap<String, String>();
         int startPosition = node.getStartPosition();
+		String utype = null, rtype = null;
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
             data.put("debugText", node.toString());
@@ -809,12 +840,24 @@ public class FQNSequenceGenerator extends ASTVisitor {
             }
         }
         String name = "." + superClassName;
-        if (startPosition != -1)
-            data.put("unresolvedType", name);
+        if (startPosition != -1) {
+			utype = name;
+            data.put("unresolvedType", utype);
+		}
         if (tb != null)
             name = getSignature(b.getMethodDeclaration());
+		rtype = name;
+		String nodeArguments = "(";
+        for (int i = 0; i < node.arguments().size(); i++) {
+			nodeArguments += node.arguments().get(i);
+			if (i < node.arguments().size() - 1)
+				nodeArguments += ", ";
+		}
+		nodeArguments += ")";
         if (startPosition != -1) {
-            data.put("resolvedType", name);
+            data.put("resolvedType", rtype);
+			data.put("partial", "<blank>" + nodeArguments + ";");
+			data.put("full", rtype + nodeArguments + ";");
             data.put("nodeType", "SUPER_CONSTRUCTOR_INVOCATION");
             nodeInfo.add(data);
         }
@@ -843,25 +886,31 @@ public class FQNSequenceGenerator extends ASTVisitor {
                     nodeInfo.add(data);
                 return false;
             }
+			String utype = getName(tb), rtype = getQualifiedName(tb);
             if (startPosition != -1) {
-                data.put("unresolvedType", "" + getName(tb));
-                data.put("resolvedType", "" + getQualifiedName(tb));
+                data.put("unresolvedType", "" + utype);
+                data.put("resolvedType", "" + rtype);
                 data.put("nodeType", "SUPER_FIELD_ACCESS");
             }
         } else {
+			String utype = "super", rtype = "super";
             if (startPosition != -1) {
-                data.put("unresolvedType", "super");
-                data.put("resolvedType", "super");
+                data.put("unresolvedType", utype);
+                data.put("resolvedType", rtype);
                 data.put("nodeType", "SUPER_FIELD_ACCESS");
             }
         }
         String name = "." + node.getName().getIdentifier();
+		String utype = name;
         if (startPosition != -1)
-            data.put("unresolvedType", name);
+            data.put("unresolvedType", utype);
         if (tb != null)
             name = getQualifiedName(tb) + name;
+		String rtype = name;
         if (startPosition != -1) {
-            data.put("resolvedType", name);
+            data.put("resolvedType", rtype);
+			data.put("partial", "<blank>" + utype);
+			data.put("full", rtype);
             data.put("nodeType", "SUPER_FIELD_ACCESS");
             nodeInfo.add(data);
         }
@@ -872,6 +921,7 @@ public class FQNSequenceGenerator extends ASTVisitor {
     public boolean visit(SuperMethodInvocation node) {
         HashMap<String, String> data = new HashMap<String, String>();
         int startPosition = node.getStartPosition();
+		String utype = null, rtype = null;
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
             data.put("debugText", node.toString());
@@ -890,24 +940,42 @@ public class FQNSequenceGenerator extends ASTVisitor {
                 return false;
             }
             if (startPosition != -1) {
-                data.put("unresolvedType", getName(tb));
-                data.put("resolvedType", getQualifiedName(tb));
+				utype = getName(tb);
+				rtype = getQualifiedName(tb);
+                data.put("unresolvedType", utype);
+                data.put("resolvedType", rtype);
                 data.put("nodeType", "SUPER_METHOD_INVOCATION");
             }
         } else {
             if (startPosition != -1) {
-                data.put("unresolvedType", "super");
-                data.put("resolvedType", "super");
+				utype = "super";
+				rtype = "super";
+                data.put("unresolvedType", utype);
+                data.put("resolvedType", rtype);
                 data.put("nodeType", "SUPER_METHOD_INVOCATION");
             }
         }
         String name = "." + node.getName().getIdentifier();
-        if (startPosition != -1)
-            data.put("unresolvedType", name);
+        if (startPosition != -1) {
+			utype = name;
+            data.put("unresolvedType", utype);
+
+		}
+		String nodeArguments = "(";
+        for (int i = 0; i < node.arguments().size(); i++) {
+			nodeArguments += node.arguments().get(i);
+			if (i < node.arguments().size() - 1)
+				nodeArguments += ", ";
+		}
+		nodeArguments += ")";
+
         if (tb != null)
             name = getSignature(b.getMethodDeclaration());
+		rtype = name;
         if (startPosition != -1) {
-            data.put("unresolvedType", name);
+            data.put("resolvedType", rtype);
+			data.put("partial", "<blank>" + utype + nodeArguments);
+			data.put("full", rtype + nodeArguments);
             nodeInfo.add(data);
         }
         for (int i = 0; i < node.arguments().size(); i++)
@@ -948,12 +1016,55 @@ public class FQNSequenceGenerator extends ASTVisitor {
 
     @Override
     public boolean visit(ThrowStatement node) {
+		String utype = null, rtype = null;
         HashMap<String, String> data = new HashMap<String, String>();
         int startPosition = node.getStartPosition();
+		if (node.getExpression().getClass().getSimpleName().toString().equals("SimpleName")) {
+			SimpleName simpleNameNode = (SimpleName)node.getExpression();
+			IBinding b = simpleNameNode.resolveBinding();
+			if (b != null) {
+				if (b instanceof IVariableBinding) {
+					IVariableBinding vb = (IVariableBinding) b;
+					ITypeBinding tb = vb.getType();
+					if (tb != null) {
+						tb = tb.getTypeDeclaration();
+						utype = getName(tb);
+						rtype = getQualifiedName(tb);
+					}
+				} else if (b instanceof ITypeBinding) {
+					ITypeBinding tb = (ITypeBinding) b;
+					tb = tb.getTypeDeclaration();
+					utype = getName(tb);
+					rtype = getQualifiedName(tb);
+				}
+			} else {
+				utype = simpleNameNode.getIdentifier();
+				rtype = simpleNameNode.getIdentifier();
+			}
+			if (utype.equals(rtype)) {
+				if (startPosition != -1) {
+					int endPosition = startPosition + node.getLength();
+					data.put("unresolvedType", utype);
+					data.put("resolvedType", rtype);
+				}
+			} else {
+				if (startPosition != -1) {
+					data.put("unresolvedType", utype);
+					data.put("resolvedType", rtype);
+					data.put("partial", "throw <blank>");
+					data.put("full", "throw " + rtype);
+				}
+			}
+		} else {
+			if (startPosition != -1) {
+				data.put("unresolvedType", null);
+				data.put("resolvedType", null);
+			}
+		}
         if (startPosition != -1) {
             int endPosition = startPosition + node.getLength();
             data.put("debugText", node.toString());
-            data.put("nodeType", "THROW_EXPRESSION");
+            data.put("nodeType", "THROW_STATEMENT");
             data.put("start", "" + (startPosition - offset - 1));
             data.put("end", "" + (endPosition - offset - 1));
             nodeInfo.add(data);
